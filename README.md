@@ -1,13 +1,39 @@
-# ⚙️ Repositorio de Automatización
+##  Scripts Description
 
-Este repositorio contiene varios scripts shell y herramientas de automatización diseñados para simplificar tareas comunes de administración de sistemas y desarrollo.
+### 1. `backup.sh` (Directory Backup)
 
-## Contenido
+This script creates a compressed archive (`.tar.gz`) of an important source directory and saves it to a specified destination.
 
-* **lab01:** Contiene el primer conjunto de scripts, incluida una utilidad de copia de seguridad de directorios.
-* **...** (Futuros laboratorios/scripts)
+* **Function:** Creates a timestamped, compressed backup archive.
+* **Usage:** `./backup.sh <source_directory> [destination_directory]`
+* **Default Behavior:** If the destination is not provided, it defaults to the `/backup` directory.
+* **Validation:** Checks if the source directory exists and attempts to create the destination directory if missing.
 
-## Ramas
+### 2. `cleanup.sh` (Temporary File Cleanup)
 
-* `main`: La rama estable para scripts listos para producción.
-* `lab01`: Rama de desarrollo para las tareas del primer laboratorio.
+This script automatically searches a directory (and its subdirectories) for files matching specified extensions and deletes them.
+
+* **Function:** Cleans up temporary, log, or backup files in a given location.
+* **Usage:** `./cleanup.sh <directory_path> [extension1 extension2 ...]`
+* **Default Behavior:** If no extensions are specified, it defaults to deleting files with the **`.tmp`** extension.
+* **Output:** Reports the total number of files deleted upon completion.
+* **Validation:** Checks if the cleanup directory exists.
+
+### 3. `disk_usage.sh` (Disk Usage Monitoring)
+
+This script monitors the storage consumption of a directory against a predefined maximum volume and alerts the administrator if a usage threshold is exceeded.
+
+* **Function:** Monitors directory size and triggers an alert based on percentage usage.
+* **Obligatory Arguments:** The directory path and the maximum reserved volume in **Megabytes (MB)**.
+* **Optional Argument:** The threshold percentage (defaults to **80%**).
+* **Logging:** Outputs the current usage percentage to the **`disk_usage.log`** file.
+* **Alerts:** Sends a notification to a specified email address if the usage is at or above the threshold.
+
+---
+
+##  How to Use
+
+Before running any script, ensure it has executable permissions:
+
+```bash
+chmod +x lab01/*.sh

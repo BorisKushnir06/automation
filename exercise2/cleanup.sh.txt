@@ -1,0 +1,79 @@
+#!/bin/bash
+
+# Nombre del Script: cleanup.sh
+# Descripción: Elimina archivos con extensiones especificadas de un directorio dado.
+# Uso: ./cleanup.sh <ruta_directorio> [extension1 extension2 ...]
+
+# --- Configuración ---
+DEFAULT_EXTENSIONS=(".tmp")
+DELETED_COUNT=0
+
+# --- Análisis y Validación de Argumentos ---
+
+# 1. Verificar si se proporcionó la ruta al directorio
+if [ -z "$1" ]; then
+    echo "Error: Falta la ruta al directorio de limpieza." >&2
+    echo "Uso: $0 <ruta_directorio> [extension1 extension2 ...]" >&2
+    exit 1
+fi
+
+CLEANUP_DIR="$1"
+
+# 2. Verificar si el directorio existe
+if [ ! -d "$CLEANUP_DIR" ]; then
+    echo "Error: El directorio especificado '$CLEANUP_DIR' no existe o no es un directorio." >&2
+    exit 1
+fi
+
+# 3. Determinar las extensiones a limpiar
+# Si se proporcionan argumentos adicionales (a partir de $2), úsalos.
+# Si no, usa el valor predeterminado (".tmp").
+if [ $# -gt 1 ]; then
+    # Usar todos los argumentos a partir del segundo
+    # SHIFT elimina el primer argumento ($1, la ruta), dejando solo las extensiones en $1, $2, etc.
+    shift
+    EXTENSIONS=("$@")
+else
+    # Usar la extensión predeterminada
+    EXTENSIONS=("${DEFAULT_EXTENSIONS[@]}")
+fi
+
+echo "Iniciando limpieza en: $CLEANUP_DIR"
+echo "Extensiones a eliminar: ${EXTENSIONS[@]}"
+echo "---"
+
+# --- Limpieza de Archivos ---
+
+# Bucle sobre cada extensión especificada
+for EXT in "${EXTENSIONS[@]}"; do
+    # Usar 'find' para localizar y eliminar archivos de forma segura.
+    # El patrón es: directorio + cualquier nombre de archivo + extensión
+    # Usamos 'find ... -print' en lugar de '-delete' para primero contarlos y luego eliminarlos.
+    
+    # Contar archivos a eliminar (usando un bucle while para manejar nombres de archivo con espacios)
+    COUNT_FOR_EXT=0
+    
+    # find busca archivos (type f) que terminen con la extensión y los cuenta
+    while IFS= read -r -d $'\0' FILE; do
+        COUNT_FOR_EXT=$((COUNT_FOR_EXT + 1))
+    done < <(find "$CLEANUP_DIR" -type f -name "*$EXT" -print0)
+    
+    if [ "$COUNT_FOR_EXT" -gt 0 ]; then
+        echo "Eliminando $COUNT_FOR_EXT archivo(s) con la extensión '$EXT'..."
+        
+        # Eliminar los archivos (el comando real)
+        find "$CLEANUP_DIR" -type f -name "*$EXT" -delete
+        
+        # Actualizar el contador total
+        DELETED_COUNT=$((DELETED_COUNT + COUNT_FOR_EXT))
+    else
+        echo "No se encontraron archivos con la extensión '$EXT'."
+    fi
+done
+
+# --- Salida Final ---
+echo "---"
+echo "Limpieza completada."
+echo "Total de archivos eliminados: $DELETED_COUNT"
+
+exit 0

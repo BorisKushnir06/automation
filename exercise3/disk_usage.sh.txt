@@ -1,0 +1,91 @@
+#!/bin/bash
+
+# Script Name: disk_usage.sh
+# Description: Monitorea el uso de espacio en disco de un directorio y alerta si excede un umbral.
+# Usage: ./disk_usage.sh <directorio> <volumen_max_MB> [umbral_porcentaje]
+
+# --- Configuración ---
+DEFAULT_THRESHOLD=80
+LOG_FILE="disk_usage.log"
+# NOTA: Reemplazar con el correo electrónico del destinatario real
+ALERT_EMAIL="tu_correo_aqui@example.com"
+EMAIL_SUBJECT="ALERTA: Uso de Disco Excedido en $(hostname)"
+
+# --- Argument Parsing and Validation ---
+
+# 1. Verificar el número de argumentos obligatorios (directorio y volumen máximo)
+if [ $# -lt 2 ]; then
+    echo "Error: Faltan argumentos obligatorios." >&2
+    echo "Uso: $0 <directorio> <volumen_max_MB> [umbral_porcentaje]" >&2
+    exit 1
+fi
+
+MONITOR_DIR="$1"
+MAX_VOLUME_MB="$2"
+THRESHOLD="${3:-$DEFAULT_THRESHOLD}" # Usa el tercer argumento o el valor predeterminado (80)
+
+# 2. Verificar si el directorio existe
+if [ ! -d "$MONITOR_DIR" ]; then
+    echo "Error: El directorio '$MONITOR_DIR' no existe o no es un directorio." >&2
+    exit 1
+fi
+
+# 3. Validar que el volumen máximo sea un número positivo
+if ! [[ "$MAX_VOLUME_MB" =~ ^[0-9]+$ ]] || [ "$MAX_VOLUME_MB" -le 0 ]; then
+    echo "Error: El volumen máximo debe ser un número entero positivo." >&2
+    exit 1
+fi
+
+# 4. Validar que el umbral sea un número entre 1 y 100
+if ! [[ "$THRESHOLD" =~ ^[0-9]+$ ]] || [ "$THRESHOLD" -lt 1 ] || [ "$THRESHOLD" -gt 100 ]; then
+    echo "Error: El umbral de uso debe ser un número entre 1 y 100." >&2
+    exit 1
+fi
+
+# --- Cálculo de Uso de Disco ---
+
+# Usar 'du -s' para obtener el tamaño total del directorio en kilobytes (K).
+# Luego, convertir a Megabytes (MB) dividiendo por 1024.
+# El comando 'awk' se usa para realizar la división en punto flotante.
+
+# Obtener el uso actual en MB (kilobytes / 1024)
+CURRENT_USAGE_KB=$(du -s "$MONITOR_DIR" | awk '{print $1}')
+CURRENT_USAGE_MB=$(echo "scale=2; $CURRENT_USAGE_KB / 1024" | bc)
+
+# Calcular el porcentaje de uso actual
+# Porcentaje = (Uso_Actual_MB / Volumen_Máximo_MB) * 100
+CURRENT_USAGE_PERCENT=$(echo "scale=2; ($CURRENT_USAGE_MB / $MAX_VOLUME_MB) * 100" | bc)
+
+# Redondear el porcentaje a un entero para la comparación
+CURRENT_USAGE_INT=$(printf "%.0f\n" "$CURRENT_USAGE_PERCENT")
+
+
+# --- Registro de Uso ---
+
+DATE_TIME=$(date +"%Y-%m-%d %H:%M:%S")
+LOG_MESSAGE="$DATE_TIME - Directorio: $MONITOR_DIR, Uso: ${CURRENT_USAGE_INT}%, Umbral: ${THRESHOLD}%"
+
+echo "$LOG_MESSAGE" >> "$LOG_FILE"
+echo "Registro de uso guardado en '$LOG_FILE'."
+echo "Uso actual: ${CURRENT_USAGE_INT}%"
+
+# --- Verificación y Notificación de Umbral ---
+
+if [ "$CURRENT_USAGE_INT" -ge "$THRESHOLD" ]; then
+    ALERT_BODY="El directorio $MONITOR_DIR ha excedido el umbral de uso de disco.\n"
+    ALERT_BODY+="Uso actual: ${CURRENT_USAGE_INT}% (de un máximo de ${MAX_VOLUME_MB} MB).\n"
+    ALERT_BODY+="Umbral configurado: ${THRESHOLD}%. Por favor, revise el directorio."
+    
+    echo "¡ALERTA! El uso de disco (${CURRENT_USAGE_INT}%) ha alcanzado o excedido el umbral (${THRESHOLD}%)."
+
+    # Enviar el correo electrónico de notificación (requiere el paquete 'mail' o 'mailx' instalado)
+    echo -e "$ALERT_BODY" | mail -s "$EMAIL_SUBJECT" "$ALERT_EMAIL"
+    
+    if [ $? -eq 0 ]; then
+        echo "Notificación por correo electrónico enviada a $ALERT_EMAIL."
+    else
+        echo "Advertencia: Falló el envío del correo electrónico. Asegúrese de que 'mail' esté configurado."
+    fi
+fi
+
+exit 0
